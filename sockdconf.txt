@@ -1,0 +1,99 @@
+# listen on... can be an IP or an interface
+# If it's an interface, Danted can query all IP addresses of the given interface and then bind to all the found IP addresses including both IPv4 and IPv6 (if IPv6 is available in the interface).
+# Otherwise, if specify IPs, you have to specify multiple `internal` config like below comments below:
+## internal: 10.0.0.1 port = 1080 # Bind to local network IPv4.
+## internal: 192.168.1.2 port = 1080 # Bind to local network IPv4.
+## internal: ::1 port = 1080 # Bind to loopback IPv6.
+internal: eth0 port = 6969
+# send out through... can be an IP or an interface. This `external` config uses same logic as `internal` above. However, it's best to use interface name here.
+external: eth0
+
+# for user auth run as this user
+user.privileged:   root
+# otherwise run as this user
+user.unprivileged: nobody
+# auth with user login, passwd
+socksmethod:       username
+# log to this file
+logoutput:         /var/log/sockd.log
+
+# IPv4 and IPv6 need block/pass rules for their own. Can't specify IPv4 and IPv6 in one same rule.
+# By default, Danted will block everything outside of "pass" rules. But specify them explicitly won't hurt.
+
+# Block all requests to localhost and loopback (IPv4)
+socks block { from: 0.0.0.0/0 to: lo log: connect }
+socks block { from: 0.0.0.0/0 to: eth0 log: connect }
+
+# Block all requests to localhost and loopback (IPv6)
+socks block { from: ::/0 to: lo log: connect }
+socks block { from: ::/0 to: eth0 log: connect }
+
+# allow everyone from everywhere so long as they auth, log errors
+client pass {
+    from: 0.0.0.0/0 to: 0.0.0.0/0
+    log: error # connect disconnect
+    socksmethod: username
+}
+
+# Allow gameguard logging through proxy.
+# When the game is started up, gameguard will upload log data (I don't know what the data is) to the gameguard's server.
+# For safety reason, allow it, since it could be logging the IP as well.
+# For IPv4
+socks pass {
+    from: 0.0.0.0/0 to: mgr.gameguard.co.kr
+    command: bind connect
+    log: error # connect disconnect iooperation
+    socksmethod: username
+}
+# For IPv6
+socks pass {
+    from: ::/0 to: mgr.gameguard.co.kr
+    command: bind connect
+    log: error # connect disconnect iooperation
+    socksmethod: username
+}
+
+# Allow login from launcher through proxy.
+# It would be funny if SEGA sees your real IP when logging in with the launcher and the IP logging in in-game are different, wouldn't it?
+# For IPv4
+socks pass {
+    from: 0.0.0.0/0 to: auth.pso2.jp
+    command: bind connect
+    log: error # connect disconnect iooperation
+    socksmethod: username
+}
+# For IPv6
+socks pass {
+    from: ::/0 to: auth.pso2.jp
+    command: bind connect
+    log: error # connect disconnect iooperation
+    socksmethod: username
+}
+
+# This is for when the game attempts connection to see if the game server alive (when selecting ships).
+# For IPv4, no need IPv6 because there's no IPv6 endpoints.
+socks pass {
+    from: 0.0.0.0/0 to: gs*.pso2gs.net port 12000-14000
+    command: bind connect udpassociate
+    log: error # connect disconnect iooperation
+    socksmethod: username
+}
+
+# This is for when the game attempts connection to blocks. Hence, truly logging in and play.
+# Currently, SEGA JP Server is 202.234.x.x
+# Read more about IP Submask about why there's "/16" after the IP and why there's 0.0 in the IP.
+# For IPv4, no need IPv6 because there's no IPv6 endpoints.
+socks pass {
+    from: 0.0.0.0/0 to: 202.234.0.0/16 port 12000-14000
+    command: bind connect udpassociate
+    log: error # connect disconnect iooperation
+    socksmethod: username
+}
+
+# generic pass statement for incoming connections/packets
+# because something about no support for auth with bindreply udpreply ?
+socks block {
+        from: 0.0.0.0/0 to: 0.0.0.0/0
+        command: bindreply udpreply
+        log: error # connect disconnect
+}
