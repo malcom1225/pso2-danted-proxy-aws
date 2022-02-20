@@ -1,6 +1,6 @@
 # pso2-danted-proxy
 
-this bash file is for google VM only cuz the aws ec2 ifconfig is eth0
+the aws ec2 ifconfig is eth0
 
 ## remember to run this before bash file 
 sudo chmod +x run.sh
